@@ -10,7 +10,7 @@ class Parameters:
 
 # Folder with the images
 image_folder = 'images/'
-image_name = 'image1'
+
 # There are several black and white images to test inside the images folder:
 #  image1_to_restore.jpg
 #  image2_to_restore.jpg
@@ -18,7 +18,49 @@ image_name = 'image1'
 #  image4_to_restore.jpg
 #  image5_to_restore.jpg
 
+######################################## Image 7
+# del im, u, mask_img
+image_name = 'image7'
+full_image_path = image_folder + image_name + '_to_restore.png'
+im = cv2.imread(full_image_path, cv2.IMREAD_UNCHANGED)
+mask = ((im[:,:,2] > 254) & (im[:,:,1] < 20) & (im[:,:,1] < 20)).astype('float')
+
+cv2.imshow('Original image', im)
+cv2.waitKey(0)
+
+min_val = np.min(im)
+max_val = np.max(im)
+im = (im.astype('float') - min_val)
+im = im / max_val
+
+dims = mask.shape
+ni = mask.shape[0]
+nj = mask.shape[1]
+print('Mask Dimension : ', dims)
+print('Mask Height    : ', ni)
+print('Mask Width     : ', nj)
+
+cv2.imshow('Normalized image', im)
+cv2.waitKey(0)
+cv2.imshow('Binary Mask', mask)
+cv2.waitKey(0)
+
+param = Parameters(0, 0)
+param.hi = 1 / (ni-1)
+param.hj = 1 / (nj-1)
+
+u = np.zeros(im.shape, dtype=float)
+u[:, :, 0] = inpainting.laplace_equation(im[:, :, 0], mask, param)
+u[:, :, 1] = inpainting.laplace_equation(im[:, :, 1], mask, param)
+u[:, :, 2] = inpainting.laplace_equation(im[:, :, 2], mask, param)
+
+# Show the final image
+cv2.imshow('In-painted image', u)
+cv2.waitKey(0)
+
+
 # Read an image to be restored
+image_name = 'image1'
 full_image_path = image_folder + image_name + '_to_restore.jpg'
 im = cv2.imread(full_image_path, cv2.IMREAD_UNCHANGED)
 
@@ -127,3 +169,4 @@ cv2.waitKey(0)
 
 # Write your code to remove the red text overlayed on top of image7_to_restore.png
 # Hint: the undesired overlay is plain red, so it should be easy to extract the (binarized) mask from the image file
+
