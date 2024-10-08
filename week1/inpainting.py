@@ -23,6 +23,7 @@ def laplace_equation(f, mask, param):
     mask_ext = np.zeros((ni + 2, nj + 2), dtype=float)
     ndi_ext = mask_ext.shape[0]
     ndj_ext = mask_ext.shape[1]
+    print(ndi_ext, ndj_ext)
     mask_ext[1 : ndi_ext - 1, 1 : ndj_ext - 1] = mask
 
     # Store memory for the A matrix and the b vector
@@ -57,24 +58,57 @@ def laplace_equation(f, mask, param):
         idx_Aj.insert(idx, p + 1)
         a_ij.insert(idx, -1)
         idx = idx + 1
-
+    print("North:")
+    print(list(zip(idx_Ai, idx_Aj, a_ij))[:10])
+    print()
     # South side boundary conditions
     i = ni_ext
     for j in range(nj_ext):
         p = j * (ni + 2) + i
         # COMPLETE THE CODE
+        idx_Ai.insert(idx, p)
+        idx_Aj.insert(idx, p)
+        a_ij.insert(idx, 1)
+        idx = idx + 1
+
+        idx_Ai.insert(idx, p)
+        idx_Aj.insert(idx, p + 1)
+        a_ij.insert(idx, -1)
+        idx = idx + 1
+    
+    print("South:")
+    print(list(zip(idx_Ai, idx_Aj, a_ij))[nj_ext*2:nj_ext*2+10])
+    print()
 
     # West side boundary conditions
     j = 0
-    for i in range(ni_ext):
-        p = j * (ni + 2) + i
-        # COMPLETE THE CODE
+    for i in range(1, ni_ext):
+        p = i
+        #COMPLETE THE CODE
+        # idx_Ai.insert(idx, p)
+        # idx_Aj.insert(idx, p)
+        # a_ij.insert(idx, -1)
+        # idx = idx + 1
+
+        # idx_Ai.insert(idx, p)
+        # idx_Aj.insert(idx, p + ni_ext)
+        # a_ij.insert(idx, -1)
+        # idx = idx + 1
 
     # East side boundary conditions
     j = nj_ext
     for i in range(ni_ext):
         p = (j - 1) * (ni + 2) + i
         # COMPLETE THE CODE
+        # idx_Ai.insert(idx, p)
+        # idx_Aj.insert(idx, p)
+        # a_ij.insert(idx, 1)
+        # idx = idx + 1
+
+        # idx_Ai.insert(idx, p)
+        # idx_Aj.insert(idx, p - ni_ext)
+        # a_ij.insert(idx, -1)
+        # idx = idx + 1
 
     # Looping over the pixels
     for j in range(1, nj + 1):
@@ -84,21 +118,60 @@ def laplace_equation(f, mask, param):
             p = j * (ni + 2) + i
 
             if mask_ext[i, j] == 1: # we have to in-paint this pixel
-
                 # Fill Idx_Ai, idx_Aj and a_ij with the corresponding values and vector b
                 # COMPLETE THE CODE
+
+                #-4*U(i,j) + U(i+1,j) + U(i-1,j) + U(i,j+1) + U(i,j-1) = 0
+
+                idx_Ai.append(p)
+                idx_Aj.append(p) 
+                a_ij.append(-4)
+
+                
+                idx_Ai.append(p)
+                idx_Aj.append(p - 1) 
+                a_ij.append(1)  
+
+                
+                idx_Ai.append(p)
+                idx_Aj.append(p + 1) 
+                a_ij.append(1)
+
+                
+                idx_Ai.append(p)
+                idx_Aj.append(p - ni_ext)
+                a_ij.append(1)
+
+                
+                idx_Ai.append(p)
+                idx_Aj.append(p + ni_ext) 
+                a_ij.append(1)
+
+                b[p] = 0
 
             else: # we do not have to in-paint this pixel
-
                 # Fill Idx_Ai, idx_Aj and a_ij with the corresponding values and vector b
                 # COMPLETE THE CODE
+                
+                #U(i,j) = F(i,j)
+
+                idx_Ai.append(p)
+                idx_Aj.append(p)
+                a_ij.append(1)
+                
+                b[p] = f_ext[i, j]
+
 
     idx_Ai_c = [i - 1 for i in idx_Ai]
     idx_Aj_c = [i - 1 for i in idx_Aj]
 
     # COMPLETE THE CODE (fill out the interrogation marks ???)
-    # A = sparse(idx_Ai_c, idx_Aj_c, a_ij, ???, ???)
-    # x = spsolve(A, b)
+    print(max(idx_Ai_c), max(idx_Aj_c))
+    print(nPixels)
+    A = sparse(idx_Ai_c, idx_Aj_c, a_ij, nPixels, nPixels)
+    print(A)
+    print(max(b))
+    x = spsolve(A, b)
 
     u_ext = np.reshape(x,(ni+2, nj+2), order='F')
     u_ext_i = u_ext.shape[0]
