@@ -58,9 +58,9 @@ u[:, :, 2] = inpainting.laplace_equation(im[:, :, 2], mask, param)
 cv2.imshow('In-painted image', u)
 cv2.waitKey(0)
 
-
+#############################################################
 # Read an image to be restored
-image_name = 'image1'
+image_name = 'image2'
 full_image_path = image_folder + image_name + '_to_restore.jpg'
 im = cv2.imread(full_image_path, cv2.IMREAD_UNCHANGED)
 

@@ -48,6 +48,10 @@ def laplace_equation(f, mask, param):
         north_idx_Aj.append(p)
         north_a_ij.append(1)
 
+        north_idx_Ai.append(p)
+        north_idx_Aj.append(p+1)
+        north_a_ij.append(-1)
+
     print("North:")
     print(list(zip(north_idx_Ai, north_idx_Aj, north_a_ij))[:10])
     print()
@@ -61,6 +65,10 @@ def laplace_equation(f, mask, param):
         south_idx_Ai.append(p)
         south_idx_Aj.append(p)
         south_a_ij.append(1)
+        
+        north_idx_Ai.append(p)
+        north_idx_Aj.append(p-1)
+        north_a_ij.append(-1)
     
     print("South:")
     print(list(zip(south_idx_Ai, south_idx_Aj, south_a_ij))[:10])
@@ -76,6 +84,10 @@ def laplace_equation(f, mask, param):
         west_idx_Aj.append(p)
         west_a_ij.append(1)
 
+        west_idx_Ai.append(p)
+        west_idx_Aj.append(p+ndi_ext)
+        west_a_ij.append(-1)
+
     print("West:")
     print(list(zip(south_idx_Ai, south_idx_Aj, south_a_ij))[:10])
     print()
@@ -89,6 +101,10 @@ def laplace_equation(f, mask, param):
         east_idx_Ai.append(p)
         east_idx_Aj.append(p)
         east_a_ij.append(1)
+
+        west_idx_Ai.append(p)
+        west_idx_Aj.append(p-ndi_ext)
+        west_a_ij.append(-1)
 
     print("East:")
     print(list(zip(south_idx_Ai, south_idx_Aj, south_a_ij))[:10])
