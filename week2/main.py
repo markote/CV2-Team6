@@ -31,16 +31,20 @@ cv2.imshow('Mouth source mask', src_mask_mouth); cv2.waitKey(0)
 cv2.imshow('Mouth destination mask', dst_mask_mouth); cv2.waitKey(0)
 
 # Get the translation vectors (hard coded)
-t_eyes = poisson_editing.get_translation(src_mask_eyes, dst_mask_eyes, "eyes")
-t_mouth = poisson_editing.get_translation(src_mask_mouth, dst_mask_mouth, "mouth")
+# t_eyes = poisson_editing.get_translation(src_mask_eyes, dst_mask_eyes)
+# t_mouth = poisson_editing.get_translation(src_mask_mouth, dst_mask_mouth)
 
 # Cut out the relevant parts from the source image and shift them into the right position
-# CODE TO COMPLETE
-
 # Blend with the original (destination) image
 # CODE TO COMPLETE
+
+combined = poisson_editing.combine_images(src, dst, src_mask_eyes, dst_mask_eyes)
+combined = poisson_editing.combine_images(src, combined, src_mask_mouth, dst_mask_mouth)
+cv2.imshow('Combined image', combined); cv2.waitKey(0)
+
+
 mask = np.zeros_like(dst)
-u_comb = np.zeros_like(dst) # combined image
+u_comb = combined # combined image
 
 for channel in range(3):
 
