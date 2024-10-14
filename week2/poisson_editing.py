@@ -4,19 +4,42 @@ from skimage.feature import match_template
 import cv2
 import matplotlib.pyplot as plt
 import scipy.ndimage as nd
+import scipy.sparse as sparse
+import scipy.ndimage as nd
 
 def im_fwd_gradient(image: np.ndarray):
 
     # CODE TO COMPLETE
-    grad_i = 0
-    grad_j = 0
+    
+    # Ux_i,j = Ui+1,j - Ui,j
+    # we pad 1 at the end to keep same dimensions
+    grad_i = np.pad(image[:, 1:], pad_width=((0, 0), (0, 1))) - np.pad(image[:, :-1], pad_width=((0, 0), (0, 1)))
+    
+    # Uy_i,j = Ui,j+1 - Ui,j
+    # we pad 1 at the end to keep same dimensions
+    grad_j = np.pad(image[1:, :], pad_width=((0, 1), (0, 0))) - np.pad(image[:-1, :], pad_width=((0, 1), (0, 0)))
     return grad_i, grad_j
 
 def im_bwd_divergence(im1: np.ndarray, im2: np.ndarray):
 
     # CODE TO COMPLETE
-    div_i = 0
-    div_j = 0
+    # Vx_i,j - Vx_i-1,j
+    # we pad 1 at the begining to keep same dimensions
+    div_i = np.pad(im1[:, 1:], pad_width=((0, 0), (1, 0))) - np.pad(im1[:,:-1], pad_width=((0, 0), (1, 0)))
+    # Vy_i,j - Vy_i-1,j
+    # we pad 1 at the begining to keep same dimensions
+    div_j = np.pad(im2[1:, :], pad_width=((1, 0), (0, 0))) - np.pad(im2[:-1,:], pad_width=((1, 0), (0, 0)))
+    
+    # plt.subplot(1,2, 1)
+    # plt.imshow(div_i)
+
+    # plt.subplot(1,2, 2)
+    # plt.imshow(div_i)
+    # plt.show()
+    
+    # plt.imshow(div_i + div_j)
+    # plt.show()
+
     return div_i + div_j
 
 def composite_gradients(u1: np.array, u2: np.array, mask: np.array):
@@ -31,18 +54,104 @@ def composite_gradients(u1: np.array, u2: np.array, mask: np.array):
     """
 
     # CODE TO COMPLETE
-    vi = 0
-    vj = 0
+    u1x, u1y = im_fwd_gradient(u1)
+    u2x, u2y = im_fwd_gradient(u2)
+
+    vi = np.zeros_like(u1x)
+    vj = np.zeros_like(u1y)
+    vi[mask] = u1x[mask]
+    vi[~mask] = u2x[~mask]
+    vj[mask] = u1y[mask]
+    vj[~mask] = u2y[~mask]
     return vi, vj
 
-def poisson_linear_operator(u: np.array, beta: np.array):
+def poisson_linear_operator(f_star: np.array, g: np.array, mask: np.array,  beta: np.array):
     """
     Implements the action of the matrix A in the quadratic energy associated
     to the Poisson editing problem.
     """
-    Au = 0
+    nj, ni = f_star.shape
+    print(nj, ni)
+    nPix = nj*ni
+    A = sparse.lil_matrix((nPix, nPix), dtype=np.float64)
+    b = np.zeros(shape=nPix, dtype=np.float64)
+    
+    inside_region = nd.binary_erosion(mask)
+    inside_boundary = mask & ~inside_region
+    outside_region = ~mask
+
+    # plt.imshow(g)
+    # plt.show()
+
+    # plt.imshow(f_star)
+    # plt.show()
+
+    # plt.subplot(1,3,1)
+    # plt.imshow(inside_region)
+    # plt.subplot(1,3,2)
+    # plt.imshow(boundary)
+    # plt.subplot(1,3,3)
+    # plt.imshow(outside_region)
+    # plt.show()
+    # plt.figure(figsize=(10,10))
+    # plt.imshow(g)
+    # plt.imshow(inside_boundary, alpha=0.25)
+    # plt.show()
+
+    
     # CODE TO COMPLETE
-    return Au
+    ## Boundary Condition
+    for p in  np.argwhere(inside_boundary):
+        ind = p[0] * ni + p[1]
+
+        A[ind, ind] = 4
+        v1 = g[*p] - g[p[0]+1, p[1]]
+        v2 = g[*p] - g[p[0]-1, p[1]]
+        v3 = g[*p] - g[p[0], p[1]+1]
+        v4 = g[*p] - g[p[0], p[1]-1]
+        b[ind] += 0
+
+        neis = [(p[0]+1, p[1]), 
+                (p[0]-1, p[1]),
+                (p[0], p[1]+1),
+                (p[0], p[1]-1)]
+        
+        for nei in neis:
+            nei_ind = nei[0]*ni + nei[1]
+            if mask[*nei]:
+                A[ind, nei_ind] = -1
+            else:
+                b[ind] += f_star[*nei]
+       
+
+    ## Inside Condition
+    for p in  np.argwhere(inside_region):
+        ind = p[0] * ni + p[1]
+        ind1 = (p[0]+1) * ni + p[1]
+        ind2 = (p[0]-1) * ni + p[1]
+        ind3 = (p[0]) * ni + p[1]+1
+        ind4 = (p[0]) * ni + p[1]-1
+        
+        A[ind, ind] = 4
+        A[ind, ind1] = -1
+        A[ind, ind2] = -1
+        A[ind, ind3] = -1
+        A[ind, ind4] = -1
+
+        v1 = g[*p] - g[p[0]+1, p[1]]
+        v2 = g[*p] - g[p[0]-1, p[1]]
+        v3 = g[*p] - g[p[0], p[1]+1]
+        v4 = g[*p] - g[p[0], p[1]-1]
+        b[ind] = v1 + v2 + v3 + v4
+
+
+    ## Outside
+    for p in  np.argwhere(outside_region):
+        ind = p[0] * ni + p[1]
+        A[ind, ind] = 1
+        b[ind] = f_star[*p]
+
+    return A.tocsr(), b
 
 def get_translation(original_img: np.ndarray, translated_img: np.ndarray, part: str = ""):
 
