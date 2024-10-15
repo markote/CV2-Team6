@@ -28,7 +28,7 @@ def make_translucid_mask(mask):
 
 def plot_clonning_goal(dst_image, transplants):
     r = len(transplants)
-    _, ax = plt.subplots(r, 2, figsize=(6, 3*r))
+    _, ax = plt.subplots(r, 2, figsize=(6, 3*r), squeeze=False)
     for i in range(len(transplants)):
         ax[i][0].imshow(dst_image)
         ax[i][0].imshow(make_translucid_mask(transplants[i][2]))
@@ -50,6 +50,7 @@ def poisson_cloning(dst, transplants):
         transplant[t>0] = t[t>0]
         mask |= dst_mask
     result = np.zeros_like(dst)
+    print("t")
     for i in range(3):
         result[:,:,i] = poisson_editing.simple_poisson_solver(dst[:,:,i].astype(np.float32), 
                                                    transplant[:,:,i].astype(np.float32), 

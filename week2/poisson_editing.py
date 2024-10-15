@@ -15,6 +15,8 @@ def _bounding_box(mask: np.ndarray):
     cmin, cmax = np.where(cols)[0][[0, -1]]
     return rmin, rmax, cmin, cmax
 
+
+
 def get_transplant(src_img: np.ndarray, src_mask: np.ndarray, dst_mask: np.ndarray, margin=1):
     """
     Combines the src_img into dst_img using the src_mask and dst_mask.
