@@ -7,7 +7,6 @@ import scipy.ndimage as nd
 import scipy.sparse as sparse
 import scipy.ndimage as nd
 from scipy.sparse.linalg import spsolve
-from scipy.fft import fft2, ifft2, fftshift
 
 def _bounding_box(mask: np.ndarray):
     rows = np.any(mask, axis=1)
@@ -15,15 +14,6 @@ def _bounding_box(mask: np.ndarray):
     rmin, rmax = np.where(rows)[0][[0, -1]]
     cmin, cmax = np.where(cols)[0][[0, -1]]
     return rmin, rmax, cmin, cmax
-
-def phase_correlation(img1, img2):
-    f1 = fft2(img1)
-    f2 = fft2(img2)
-    cross_power_spectrum = (f1 * np.conj(f2)) / np.abs(f1 * np.conj(f2))
-    cross_corr = np.abs(ifft2(cross_power_spectrum))
-    max_idx = np.unravel_index(np.argmax(cross_corr), cross_corr.shape)
-    shifts = np.array(max_idx) - np.array(img1.shape) // 2
-    return shifts
 
 def get_transplant(src_img: np.ndarray, src_mask: np.ndarray, dst_mask: np.ndarray, margin=1):
     """
@@ -108,7 +98,7 @@ def composite_gradients(u1: np.array, u2: np.array, mask: np.array):
     vj[~mask] = u2y[~mask]
     return vi, vj
 
-def poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=False, beta: float  = 0):
+def poisson_solver(f_star: np.array, g: np.array, mask: np.array, beta: float  = 0, mix_type: str = ''):
     nj, ni = f_star.shape
     nPix = nj*ni
     A = sparse.lil_matrix((nPix, nPix), dtype=np.float64)
@@ -124,11 +114,19 @@ def poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=Fa
         ind = p[0] * ni + p[1]
 
         A[ind, ind] = 4 + beta
-        v1 = g[*p] - g[p[0]+1, p[1]]
-        v2 = g[*p] - g[p[0]-1, p[1]]
-        v3 = g[*p] - g[p[0], p[1]+1]
-        v4 = g[*p] - g[p[0], p[1]-1]
-        b[ind] += v1 + v2 + v3 + v4 + beta*f_star[*p]
+        ps = [(p[0]+1, p[1]),
+              (p[0]-1, p[1]),
+              (p[0], p[1]+1),
+              (p[0], p[1]-1)]
+        gs = [g[*p] - g[*pi] for pi in ps]
+        fs = [f_star[*p] - f_star[*pi] for pi in ps]
+        if mix_type == 'max':
+            vs = [fi if abs(fi) > abs(gi) else gi for fi, gi in zip(fs, gs)]
+        elif mix_type == 'mean':
+            vs = [(fi+gi)/2 for fi, gi in zip(fs, gs)]
+        else:
+            vs = [gi for gi in gs]
+        b[ind] += sum(vs) + beta*f_star[*p]
 
         neis = [(p[0]+1, p[1]),
                 (p[0]-1, p[1]),
@@ -157,11 +155,19 @@ def poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=Fa
         A[ind, ind3] = -1
         A[ind, ind4] = -1
 
-        v1 = g[*p] - g[p[0]+1, p[1]]
-        v2 = g[*p] - g[p[0]-1, p[1]]
-        v3 = g[*p] - g[p[0], p[1]+1]
-        v4 = g[*p] - g[p[0], p[1]-1]
-        b[ind] = v1 + v2 + v3 + v4 + beta*f_star[*p]
+        ps = [(p[0]+1, p[1]),
+              (p[0]-1, p[1]),
+              (p[0], p[1]+1),
+              (p[0], p[1]-1)]
+        gs = [g[*p] - g[*pi] for pi in ps]
+        fs = [f_star[*p] - f_star[*pi] for pi in ps]
+        if mix_type == 'max':
+            vs = [fi if abs(fi) > abs(gi) else gi for fi, gi in zip(fs, gs)]
+        elif mix_type == 'mean':
+            vs = [(fi+gi)/2 for fi, gi in zip(fs, gs)]
+        else:
+            vs = [gi for gi in gs]
+        b[ind] += sum(vs) + beta*f_star[*p]
 
 
     ## Outside

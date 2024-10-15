@@ -14,6 +14,8 @@ def read_image(path):
 
 def read_mask(path):
     img = plt.imread(path)
+    if img.shape[2] == 4:
+        img = img[:,:,:3]
     if img.ndim == 3:
         return color.rgb2gray(img) > 0
     return img > 0
@@ -42,7 +44,7 @@ def plot_comparison(img1, img2):
     ax[1].imshow(img2)
     plt.show()
 
-def poisson_cloning(dst, transplants, data_fidelity):
+def poisson_cloning(dst, transplants, data_fidelity, mix=False):
     transplant = np.zeros_like(dst)
     print(transplant.shape)
     mask = np.zeros(shape=dst.shape[:2], dtype=bool)
@@ -53,14 +55,10 @@ def poisson_cloning(dst, transplants, data_fidelity):
         transplant[t>0] = t[t>0]
         mask |= dst_mask
     result = np.zeros_like(dst)
-    plt.imshow(transplant)
-    plt.show()
-    plt.imshow(dst)
-    plt.show()
     for i in range(3):
         result[:,:,i] = poisson_editing.poisson_solver(dst[:,:,i].astype(np.float32), 
                                                    transplant[:,:,i].astype(np.float32), 
-                                                   mask, beta=data_fidelity)
+                                                   mask, beta=data_fidelity, mix_type=mix)
     result = np.clip(result, 0, 1)
     bad_clonning = np.copy(dst)
     bad_clonning[mask] = transplant[mask]
@@ -68,7 +66,9 @@ def poisson_cloning(dst, transplants, data_fidelity):
 
 if sys.argv[1] == 'lena':
     data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    mix = sys.argv[3] if len(sys.argv) >= 4 else ''
     print(data_fidelity)
+    print(mix)
     dst = read_image('images/lena/lena.png')
     src = read_image('images/lena/girl.png')
     print(dst.dtype, src.dtype)
@@ -82,11 +82,13 @@ if sys.argv[1] == 'lena':
         (src, src_mask_mouth, dst_mask_mouth)
     ]
     plot_clonning_goal(dst, transplants)
-    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
 
 if sys.argv[1] == 'mona':
     data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    mix = sys.argv[3] if len(sys.argv) >= 4 else ''
+    print(mix)
     dst = read_image('images/monalisa/lisa.png')
     src = read_image('images/monalisa/ginevra.png')
     src_mask = read_mask('images/monalisa/mask.png')
@@ -96,23 +98,42 @@ if sys.argv[1] == 'mona':
         (src, src_mask, dst_mask)
     ]
     plot_clonning_goal(dst, transplants)
-    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
 
 if sys.argv[1] == 'ivan':
     data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    mix = sys.argv[3] if len(sys.argv) >= 4 else ''
+    print(mix)
     dst = read_image('images/sandler/ivan.jpg').astype(np.float32) / 255
     src = read_image('images/sandler/adam-sandler.jpg').astype(np.float32) / 255
     src_mask = read_mask('images/sandler/adam_mask.png')
     dst_mask = read_mask('images/sandler/ivan_mask.png')
     dst = dst[: -269, : -12]
     print(dst.dtype, src.dtype)
-
     transplants = [
         (src, src_mask, dst_mask)
     ]
     plot_clonning_goal(dst, transplants)
-    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
+    plot_comparison(cloning_raw, cloning_result)
+
+if sys.argv[1] == 'expert':
+    data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    mix = sys.argv[3] if len(sys.argv) >= 4 else ''
+    print(mix)
+    dst = read_image('images/expert/theexpert.jpg').astype(np.float32) / 255
+    src = read_image('images/expert/realexpert.jpg').astype(np.float32) / 255
+    src_mask = read_mask('images/expert/realexpert_mask.png')
+    dst_mask = read_mask('images/expert/theexpert_mask.png')
+    # src = src[:,::-1]
+    # src_mask = src_mask[:,::-1]
+    print(dst.dtype, src.dtype, np.max(dst))
+    transplants = [
+        (src, src_mask, dst_mask)
+    ]
+    plot_clonning_goal(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
 
 
