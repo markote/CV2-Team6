@@ -97,7 +97,6 @@ def composite_gradients(u1: np.array, u2: np.array, mask: np.array):
 
 def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=False):
     nj, ni = f_star.shape
-    print(nj, ni)
     nPix = nj*ni
     A = sparse.lil_matrix((nPix, nPix), dtype=np.float64)
     b = np.zeros(shape=nPix, dtype=np.float64)
@@ -160,8 +159,7 @@ def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: 
     
     A = A.tocsr()
     x = spsolve(A, b)
-    result = np.clip(np.reshape(x, f_star.shape), 0, 255).astype(int)
-
+    result = np.reshape(x, f_star.shape)
     return result
 
 def advanced_poisson_solver(f_star: np.array, g: np.array, mask: np.array, beta: float, mixed: bool=False):

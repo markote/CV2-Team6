@@ -3,18 +3,44 @@ import numpy as np
 import poisson_editing
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
+from skimage import color
 import sys
 
 def read_image(path):
-    return plt.imread(path)
+    img = plt.imread(path)
+    if img.shape[2] == 4:
+        img = img[:,:,:3]
+    return img
 
 def read_mask(path):
     img = plt.imread(path)
-    return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) > 0
+    if img.ndim == 3:
+        return color.rgb2gray(img) > 0
+    return img > 0
+
+def make_translucid_mask(mask):
+    result = np.zeros(shape=(*mask.shape, 4), dtype=np.float32)
+    result[:,:,0] = 1
+    result[:,:,1] = 1
+    result[:,:,2] = 1
+    result[:,:,3] = mask*0.5
+    return result
 
 def plot_clonning_goal(dst_image, transplants):
-    plt
-    pass
+    r = len(transplants)
+    _, ax = plt.subplots(r, 2, figsize=(6, 3*r))
+    for i in range(len(transplants)):
+        ax[i][0].imshow(dst_image)
+        ax[i][0].imshow(make_translucid_mask(transplants[i][2]))
+        ax[i][1].imshow(transplants[i][0])
+        ax[i][1].imshow(make_translucid_mask(transplants[i][1]))
+    plt.show()
+
+def plot_comparison(img1, img2):
+    _, ax = plt.subplots(1, 2, figsize=(8, 4))
+    ax[0].imshow(img1)
+    ax[1].imshow(img2)
+    plt.show()
 
 def poisson_cloning(dst, transplants):
     transplant = np.zeros_like(dst)
@@ -23,16 +49,21 @@ def poisson_cloning(dst, transplants):
         t = poisson_editing.get_transplant(src_image, src_mask, dst_mask)
         transplant[t>0] = t[t>0]
         mask |= dst_mask
-    result = poisson_editing.simple_poisson_solver(dst.astype(np.float32), 
-                                                   transplant.astype(np.float32), 
-                                                   mask.astype(np.float32))
-    result = np.clip(result, 0, 255).astype(np.uint8)
-    return result
+    result = np.zeros_like(dst)
+    for i in range(3):
+        result[:,:,i] = poisson_editing.simple_poisson_solver(dst[:,:,i].astype(np.float32), 
+                                                   transplant[:,:,i].astype(np.float32), 
+                                                   mask)
+    result = np.clip(result, 0, 1)
+    bad_clonning = np.copy(dst)
+    bad_clonning[mask] = transplant[mask]
+    return result, bad_clonning
 
 if sys.argv[1] == 'lena':
     dst = read_image('images/lena/lena.png')
     src = read_image('images/lena/girl.png')
     print(dst.dtype, src.dtype)
+    print(dst.shape, src.shape)
     src_mask_eyes = read_mask('images/lena/mask_src_eyes.png')
     dst_mask_eyes = read_mask('images/lena/mask_dst_eyes.png')
     src_mask_mouth = read_mask('images/lena/mask_src_mouth.png')
@@ -41,10 +72,12 @@ if sys.argv[1] == 'lena':
         (src, src_mask_eyes, dst_mask_eyes),
         (src, src_mask_mouth, dst_mask_mouth)
     ]
-    cloning_result = poisson_cloning(dst, transplants)
+    plot_clonning_goal(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants)
+    plot_comparison(cloning_raw, cloning_result)
 
 if sys.argv[1] == 'mona':
-    dst = read_image('images/monalisa/monalisa.png')
+    dst = read_image('images/monalisa/lisa.png')
     src = read_image('images/monalisa/ginevra.png')
     src_mask = read_mask('images/monalisa/mask.png')
     dst_mask = read_mask('images/monalisa/mask.png')
@@ -52,7 +85,9 @@ if sys.argv[1] == 'mona':
     transplants = [
         (src, src_mask, dst_mask)
     ]
-    cloning_result = poisson_cloning(dst, transplants)
+    plot_clonning_goal(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants)
+    plot_comparison(cloning_raw, cloning_result)
 
 
 
