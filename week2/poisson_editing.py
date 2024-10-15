@@ -6,6 +6,36 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as nd
 import scipy.sparse as sparse
 import scipy.ndimage as nd
+from scipy.sparse.linalg import spsolve
+
+def _bounding_box(mask: np.ndarray):
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    return rmin, rmax, cmin, cmax
+
+def get_transplant(src_img: np.ndarray, src_mask: np.ndarray, dst_mask: np.ndarray, margin=1):
+    """
+    Combines the src_img into dst_img using the src_mask and dst_mask.
+    """
+    src_mask = src_mask > 0
+    dst_mask = dst_mask > 0
+    if margin > 0:
+        dst_mask = nd.binary_dilation(dst_mask, iterations=margin)
+    rmin, rmax, cmin, cmax = _bounding_box(dst_mask)
+    dst_mask_clipped = dst_mask[rmin:rmax+1, cmin:cmax+1]
+    corr = nd.correlate(src_mask.astype(np.float32), dst_mask_clipped.astype(np.float32))
+    y, x = np.unravel_index(np.argmax(corr), corr.shape)
+    mask_h, mask_w = dst_mask_clipped.shape
+    src_region_x_start = max(0, x - mask_w // 2)
+    src_region_y_start = max(0, y - mask_h // 2)
+    src_region_x_end = src_region_x_start + mask_w
+    src_region_y_end = src_region_y_start + mask_h
+    masked_src_img = src_img[src_region_y_start:src_region_y_end, src_region_x_start:src_region_x_end]
+    result = np.zeros(shape=(*dst_mask.shape, 3), dtype=src_img.dtype)
+    result[rmin:rmax+1, cmin:cmax+1][dst_mask_clipped] = masked_src_img[dst_mask_clipped]
+    return result
 
 def im_fwd_gradient(image: np.ndarray):
 
@@ -65,11 +95,7 @@ def composite_gradients(u1: np.array, u2: np.array, mask: np.array):
     vj[~mask] = u2y[~mask]
     return vi, vj
 
-def poisson_linear_operator(f_star: np.array, g: np.array, mask: np.array,  beta: np.array):
-    """
-    Implements the action of the matrix A in the quadratic energy associated
-    to the Poisson editing problem.
-    """
+def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=False):
     nj, ni = f_star.shape
     print(nj, ni)
     nPix = nj*ni
@@ -80,25 +106,6 @@ def poisson_linear_operator(f_star: np.array, g: np.array, mask: np.array,  beta
     inside_boundary = mask & ~inside_region
     outside_region = ~mask
 
-    # plt.imshow(g)
-    # plt.show()
-
-    # plt.imshow(f_star)
-    # plt.show()
-
-    # plt.subplot(1,3,1)
-    # plt.imshow(inside_region)
-    # plt.subplot(1,3,2)
-    # plt.imshow(boundary)
-    # plt.subplot(1,3,3)
-    # plt.imshow(outside_region)
-    # plt.show()
-    # plt.figure(figsize=(10,10))
-    # plt.imshow(g)
-    # plt.imshow(inside_boundary, alpha=0.25)
-    # plt.show()
-
-    
     # CODE TO COMPLETE
     ## Boundary Condition
     for p in  np.argwhere(inside_boundary):
@@ -109,7 +116,7 @@ def poisson_linear_operator(f_star: np.array, g: np.array, mask: np.array,  beta
         v2 = g[*p] - g[p[0]-1, p[1]]
         v3 = g[*p] - g[p[0], p[1]+1]
         v4 = g[*p] - g[p[0], p[1]-1]
-        b[ind] += 0
+        b[ind] += v1 + v2 + v3 + v4
 
         neis = [(p[0]+1, p[1]), 
                 (p[0]-1, p[1]),
@@ -150,64 +157,12 @@ def poisson_linear_operator(f_star: np.array, g: np.array, mask: np.array,  beta
         ind = p[0] * ni + p[1]
         A[ind, ind] = 1
         b[ind] = f_star[*p]
-
-    return A.tocsr(), b
-
-def get_translation(original_img: np.ndarray, translated_img: np.ndarray, part: str = ""):
-
-    # For the eyes mask:
-    # The top left pixel of the source mask is located at (x=115, y=101)
-    # The top left pixel of the destination mask is located at (x=123, y=125)
-    # This gives a translation vector of (dx=8, dy=24)
-
-    # For the mouth mask:
-    # The top left pixel of the source mask is located at (x=125, y=140)
-    # The top left pixel of the destination mask is located at (x=132, y=173)
-    # This gives a translation vector of (dx=7, dy=33)
-
-    # The following shifts are hard coded:
-    if part == "lena_eyes":
-        return (24, 8)
-    if part == "lena_mouth":
-        return (33, 7)
     
-    img1 = cv2.cvtColor(original_img, cv2.COLOR_BGR2GRAY)>0
-    img2 = cv2.cvtColor(translated_img, cv2.COLOR_BGR2GRAY)>0
-    correlation = correlate2d(img1, img2, mode='full')
-    max_index = np.unravel_index(np.argmax(correlation), correlation.shape)
-    translation = (max_index[0] - img2.shape[0] + 1, max_index[1] - img2.shape[1] + 1)
-    print(translation)
-    return translation
+    A = A.tocsr()
+    x = spsolve(A, b)
+    result = np.clip(np.reshape(x, f_star.shape), 0, 255).astype(int)
 
-    # Here on could determine the shift vector programmatically,
-    # given an original image/mask and its translated version.
-    # Idea: using maximal cross-correlation (e.g., scipy.signal.correlate2d), or similar. This is too slow!!!!
+    return result
 
-def _bounding_box(mask: np.ndarray):
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
-    cmin, cmax = np.where(cols)[0][[0, -1]]
-    return rmin, rmax, cmin, cmax
-
-def combine_images(src_img: np.ndarray, dst_img: np.ndarray,
-                    src_mask: np.ndarray, dst_mask: np.ndarray):
-    """
-    Combines the src_img into dst_img using the src_mask and dst_mask.
-    """
-    src_img = cv2.cvtColor(src_img, cv2.COLOR_BGR2RGB)
-    dst_img = cv2.cvtColor(dst_img, cv2.COLOR_BGR2RGB)
-    src_mask = cv2.cvtColor(src_mask, cv2.COLOR_RGB2GRAY) > 0
-    dst_mask = cv2.cvtColor(dst_mask, cv2.COLOR_RGB2GRAY) > 0
-    rmin, rmax, cmin, cmax = _bounding_box(dst_mask)
-    dst_mask_clipped = dst_mask[rmin:rmax+1, cmin:cmax+1]
-    corr = nd.correlate(src_mask.astype(np.float32), dst_mask_clipped.astype(np.float32))
-    y, x = np.unravel_index(np.argmax(corr), corr.shape)
-    mask_h, mask_w = dst_mask_clipped.shape
-    src_region_x_start = max(0, x - mask_w // 2)
-    src_region_y_start = max(0, y - mask_h // 2)
-    src_region_x_end = src_region_x_start + mask_w
-    src_region_y_end = src_region_y_start + mask_h
-    masked_src_img = src_img[src_region_y_start:src_region_y_end, src_region_x_start:src_region_x_end]
-    dst_img[rmin:rmax+1, cmin:cmax+1][dst_mask_clipped] = masked_src_img[dst_mask_clipped]
-    return cv2.cvtColor(dst_img, cv2.COLOR_RGB2BGR)
+def advanced_poisson_solver(f_star: np.array, g: np.array, mask: np.array, beta: float, mixed: bool=False):
+    pass
