@@ -14,10 +14,11 @@ def read_image(path):
 
 def read_mask(path):
     img = plt.imread(path)
-    if img.shape[2] == 4:
-        img = img[:,:,:3]
-    if img.ndim == 3:
-        return color.rgb2gray(img) > 0
+    if len(img.shape) > 2:
+        if img.shape[2] == 4:
+            img = img[:,:,:3]
+        if img.ndim == 3:
+            return color.rgb2gray(img) > 0
     return img > 0
 
 def make_translucid_mask(mask):
