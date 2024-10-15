@@ -42,25 +42,33 @@ def plot_comparison(img1, img2):
     ax[1].imshow(img2)
     plt.show()
 
-def poisson_cloning(dst, transplants):
+def poisson_cloning(dst, transplants, data_fidelity):
     transplant = np.zeros_like(dst)
+    print(transplant.shape)
     mask = np.zeros(shape=dst.shape[:2], dtype=bool)
     for src_image, src_mask, dst_mask in transplants:
+        print(dst_mask.shape)
         t = poisson_editing.get_transplant(src_image, src_mask, dst_mask)
+        print(t.shape)
         transplant[t>0] = t[t>0]
         mask |= dst_mask
     result = np.zeros_like(dst)
-    print("t")
+    plt.imshow(transplant)
+    plt.show()
+    plt.imshow(dst)
+    plt.show()
     for i in range(3):
-        result[:,:,i] = poisson_editing.simple_poisson_solver(dst[:,:,i].astype(np.float32), 
+        result[:,:,i] = poisson_editing.poisson_solver(dst[:,:,i].astype(np.float32), 
                                                    transplant[:,:,i].astype(np.float32), 
-                                                   mask)
+                                                   mask, beta=data_fidelity)
     result = np.clip(result, 0, 1)
     bad_clonning = np.copy(dst)
     bad_clonning[mask] = transplant[mask]
     return result, bad_clonning
 
 if sys.argv[1] == 'lena':
+    data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    print(data_fidelity)
     dst = read_image('images/lena/lena.png')
     src = read_image('images/lena/girl.png')
     print(dst.dtype, src.dtype)
@@ -74,10 +82,11 @@ if sys.argv[1] == 'lena':
         (src, src_mask_mouth, dst_mask_mouth)
     ]
     plot_clonning_goal(dst, transplants)
-    cloning_result, cloning_raw = poisson_cloning(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity)
     plot_comparison(cloning_raw, cloning_result)
 
 if sys.argv[1] == 'mona':
+    data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
     dst = read_image('images/monalisa/lisa.png')
     src = read_image('images/monalisa/ginevra.png')
     src_mask = read_mask('images/monalisa/mask.png')
@@ -87,7 +96,23 @@ if sys.argv[1] == 'mona':
         (src, src_mask, dst_mask)
     ]
     plot_clonning_goal(dst, transplants)
-    cloning_result, cloning_raw = poisson_cloning(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity)
+    plot_comparison(cloning_raw, cloning_result)
+
+if sys.argv[1] == 'ivan':
+    data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    dst = read_image('images/sandler/ivan.jpg').astype(np.float32) / 255
+    src = read_image('images/sandler/adam-sandler.jpg').astype(np.float32) / 255
+    src_mask = read_mask('images/sandler/adam_mask.png')
+    dst_mask = read_mask('images/sandler/ivan_mask.png')
+    dst = dst[: -269, : -12]
+    print(dst.dtype, src.dtype)
+
+    transplants = [
+        (src, src_mask, dst_mask)
+    ]
+    plot_clonning_goal(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity)
     plot_comparison(cloning_raw, cloning_result)
 
 

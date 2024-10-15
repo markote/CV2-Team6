@@ -7,6 +7,7 @@ import scipy.ndimage as nd
 import scipy.sparse as sparse
 import scipy.ndimage as nd
 from scipy.sparse.linalg import spsolve
+from scipy.fft import fft2, ifft2, fftshift
 
 def _bounding_box(mask: np.ndarray):
     rows = np.any(mask, axis=1)
@@ -15,7 +16,14 @@ def _bounding_box(mask: np.ndarray):
     cmin, cmax = np.where(cols)[0][[0, -1]]
     return rmin, rmax, cmin, cmax
 
-
+def phase_correlation(img1, img2):
+    f1 = fft2(img1)
+    f2 = fft2(img2)
+    cross_power_spectrum = (f1 * np.conj(f2)) / np.abs(f1 * np.conj(f2))
+    cross_corr = np.abs(ifft2(cross_power_spectrum))
+    max_idx = np.unravel_index(np.argmax(cross_corr), cross_corr.shape)
+    shifts = np.array(max_idx) - np.array(img1.shape) // 2
+    return shifts
 
 def get_transplant(src_img: np.ndarray, src_mask: np.ndarray, dst_mask: np.ndarray, margin=1):
     """
@@ -25,18 +33,21 @@ def get_transplant(src_img: np.ndarray, src_mask: np.ndarray, dst_mask: np.ndarr
     dst_mask = dst_mask > 0
     if margin > 0:
         dst_mask = nd.binary_dilation(dst_mask, iterations=margin)
-    rmin, rmax, cmin, cmax = _bounding_box(dst_mask)
-    dst_mask_clipped = dst_mask[rmin:rmax+1, cmin:cmax+1]
-    corr = nd.correlate(src_mask.astype(np.float32), dst_mask_clipped.astype(np.float32))
-    y, x = np.unravel_index(np.argmax(corr), corr.shape)
+    
+    srcYmin, srcYmax, srcXmin, srcXmax = _bounding_box(src_mask)
+    dstYmin, dstYmax, dstXmin, dstXmax = _bounding_box(dst_mask)
+    srcCenter = ((srcYmin + srcYmax)//2, (srcXmin + srcXmax)//2)
+
+    dst_mask_clipped = dst_mask[dstYmin:dstYmax+1, dstXmin:dstXmax+1]
     mask_h, mask_w = dst_mask_clipped.shape
-    src_region_x_start = max(0, x - mask_w // 2)
-    src_region_y_start = max(0, y - mask_h // 2)
+    src_region_x_start = max(0, srcCenter[1] - mask_w // 2)
+    src_region_y_start = max(0, srcCenter[0] - mask_h // 2)
     src_region_x_end = src_region_x_start + mask_w
     src_region_y_end = src_region_y_start + mask_h
     masked_src_img = src_img[src_region_y_start:src_region_y_end, src_region_x_start:src_region_x_end]
     result = np.zeros(shape=(*dst_mask.shape, 3), dtype=src_img.dtype)
-    result[rmin:rmax+1, cmin:cmax+1][dst_mask_clipped] = masked_src_img[dst_mask_clipped]
+    # print(dst_mask_clipped.shape)
+    result[dstYmin:dstYmax+1, dstXmin:dstXmax+1][dst_mask_clipped] = masked_src_img[dst_mask_clipped]
     return result
 
 def im_fwd_gradient(image: np.ndarray):
@@ -97,7 +108,7 @@ def composite_gradients(u1: np.array, u2: np.array, mask: np.array):
     vj[~mask] = u2y[~mask]
     return vi, vj
 
-def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=False):
+def poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: bool=False, beta: float  = 0):
     nj, ni = f_star.shape
     nPix = nj*ni
     A = sparse.lil_matrix((nPix, nPix), dtype=np.float64)
@@ -112,14 +123,14 @@ def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: 
     for p in  np.argwhere(inside_boundary):
         ind = p[0] * ni + p[1]
 
-        A[ind, ind] = 4
+        A[ind, ind] = 4 + beta
         v1 = g[*p] - g[p[0]+1, p[1]]
         v2 = g[*p] - g[p[0]-1, p[1]]
         v3 = g[*p] - g[p[0], p[1]+1]
         v4 = g[*p] - g[p[0], p[1]-1]
-        b[ind] += v1 + v2 + v3 + v4
+        b[ind] += v1 + v2 + v3 + v4 + beta*f_star[*p]
 
-        neis = [(p[0]+1, p[1]), 
+        neis = [(p[0]+1, p[1]),
                 (p[0]-1, p[1]),
                 (p[0], p[1]+1),
                 (p[0], p[1]-1)]
@@ -140,7 +151,7 @@ def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: 
         ind3 = (p[0]) * ni + p[1]+1
         ind4 = (p[0]) * ni + p[1]-1
         
-        A[ind, ind] = 4
+        A[ind, ind] = 4 + beta
         A[ind, ind1] = -1
         A[ind, ind2] = -1
         A[ind, ind3] = -1
@@ -150,7 +161,7 @@ def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: 
         v2 = g[*p] - g[p[0]-1, p[1]]
         v3 = g[*p] - g[p[0], p[1]+1]
         v4 = g[*p] - g[p[0], p[1]-1]
-        b[ind] = v1 + v2 + v3 + v4
+        b[ind] = v1 + v2 + v3 + v4 + beta*f_star[*p]
 
 
     ## Outside
@@ -163,6 +174,3 @@ def simple_poisson_solver(f_star: np.array, g: np.array, mask: np.array, mixed: 
     x = spsolve(A, b)
     result = np.reshape(x, f_star.shape)
     return result
-
-def advanced_poisson_solver(f_star: np.array, g: np.array, mask: np.array, beta: float, mixed: bool=False):
-    pass
