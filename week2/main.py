@@ -32,11 +32,14 @@ def make_translucid_mask(mask):
 def plot_clonning_goal(dst_image, transplants):
     r = len(transplants)
     _, ax = plt.subplots(r, 2, figsize=(6, 3*r), squeeze=False)
+    
     for i in range(len(transplants)):
+        plt.axis('off')
         ax[i][0].imshow(dst_image)
         ax[i][0].imshow(make_translucid_mask(transplants[i][2]))
         ax[i][1].imshow(transplants[i][0])
         ax[i][1].imshow(make_translucid_mask(transplants[i][1]))
+
     plt.show()
 
 def plot_comparison(img1, img2):
@@ -118,6 +121,44 @@ if sys.argv[1] == 'ivan':
     plot_clonning_goal(dst, transplants)
     cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
+
+if sys.argv[1] == 'ivan_batch':
+    data_fidelity_values = np.linspace(0, 1, 6)
+
+    dst = read_image('images/sandler/ivan.jpg')
+    src = read_image('images/sandler/adam-sandler.jpg')
+    plt.figure(figsize=(20, 10))
+
+    plt.subplot(4, 2, 1)
+    plt.imshow(src)
+    plt.title('Source Image')
+    plt.axis('off')
+
+    plt.subplot(4, 2, 2)
+    plt.imshow(dst)
+    plt.title('Destination Image')
+    plt.axis('off')
+
+    for idx, data_fidelity in enumerate(data_fidelity_values):
+        print(f"Beta: {data_fidelity}")
+
+        dst = read_image('images/sandler/ivan.jpg').astype(np.float32) / 255
+        src = read_image('images/sandler/adam-sandler.jpg').astype(np.float32) / 255
+        src_mask = read_mask('images/sandler/adam_mask.png')
+        dst_mask = read_mask('images/sandler/ivan_mask.png')
+
+        dst = dst[: -269, : -12]
+        print("Dst Image Type:", dst.dtype, "Src Image Type:", src.dtype)
+        transplants = [(src, src_mask, dst_mask)]
+        cloning_result, _ = poisson_cloning(dst, transplants, data_fidelity, False)
+
+        plt.subplot(4, 2, idx + 3)
+        plt.imshow(cloning_result)
+        plt.title(f'Beta: {data_fidelity:.2f}')
+        plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
 
 if sys.argv[1] == 'expert':
     data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
