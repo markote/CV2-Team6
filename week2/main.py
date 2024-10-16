@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import poisson_editing
@@ -125,8 +126,8 @@ if sys.argv[1] == 'ivan':
 if sys.argv[1] == 'ivan_batch':
     data_fidelity_values = np.linspace(0, 1, 6)
 
-    dst = read_image('images/sandler/ivan.jpg')
-    src = read_image('images/sandler/adam-sandler.jpg')
+    src = read_image('images/sandler/ivan.jpg')
+    dst = read_image('images/sandler/adam-sandler.jpg')
     plt.figure(figsize=(20, 10))
 
     plt.subplot(4, 2, 1)
@@ -142,16 +143,17 @@ if sys.argv[1] == 'ivan_batch':
     for idx, data_fidelity in enumerate(data_fidelity_values):
         print(f"Beta: {data_fidelity}")
 
-        dst = read_image('images/sandler/ivan.jpg').astype(np.float32) / 255
-        src = read_image('images/sandler/adam-sandler.jpg').astype(np.float32) / 255
-        src_mask = read_mask('images/sandler/adam_mask.png')
-        dst_mask = read_mask('images/sandler/ivan_mask.png')
+        src = read_image('images/sandler/ivan.jpg').astype(np.float32) / 255
+        dst = read_image('images/sandler/adam-sandler.jpg').astype(np.float32) / 255
+        dst_mask = read_mask('images/sandler/adam_mask.png')
+        src_mask = read_mask('images/sandler/ivan_mask.png')
 
-        dst = dst[: -269, : -12]
+        src = src[: -269, : -12]
         print("Dst Image Type:", dst.dtype, "Src Image Type:", src.dtype)
         transplants = [(src, src_mask, dst_mask)]
         cloning_result, _ = poisson_cloning(dst, transplants, data_fidelity, False)
-
+        result_save_path = os.path.join('', f"cloning_result_fidelity_{data_fidelity:.2f}.png")
+        plt.imsave(result_save_path, cloning_result)
         plt.subplot(4, 2, idx + 3)
         plt.imshow(cloning_result)
         plt.title(f'Beta: {data_fidelity:.2f}')
@@ -178,6 +180,35 @@ if sys.argv[1] == 'expert':
     cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
 
+if sys.argv[1] == 'coral':
+    data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    mix = sys.argv[3] if len(sys.argv) >= 4 else ''
+    print(mix)
+    dst = read_image('images/coral/coral_reef.jpeg').astype(np.float32) / 255
+    src = read_image('images/coral/phat.jpg').astype(np.float32) / 255
+    src_mask = read_mask('images/coral/phat_mask.png')
+    dst_mask = read_mask('images/coral/phat_mask.png')
+
+    transplants = [
+        (src, src_mask, dst_mask)
+    ]
+    plot_clonning_goal(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, 0, '')
+    i = 1
+    plt.imsave('phat_coral'+str(i)+'.png', cloning_result)
+
+    i+=1
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, 0.15, '')
+    plt.imsave('phat_coral'+str(i)+'.png', cloning_result)
+
+    i+=1
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, 0, 'mean')
+    plt.imsave('phat_coral'+str(i)+'.png', cloning_result)
+
+    i+=1
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, 0.1, 'mean')
+    plt.imsave('phat_coral'+str(i)+'.png', cloning_result)
+
 if sys.argv[1] == 'mugshot':
     data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
     mix = sys.argv[3] if len(sys.argv) >= 4 else ''
@@ -194,6 +225,7 @@ if sys.argv[1] == 'mugshot':
     plot_clonning_goal(dst, transplants)
     cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
+
 
 
 #     # poisson_cloning
