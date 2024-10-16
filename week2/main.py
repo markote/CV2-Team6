@@ -137,7 +137,22 @@ if sys.argv[1] == 'expert':
     cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
     plot_comparison(cloning_raw, cloning_result)
 
-
+if sys.argv[1] == 'mugshot':
+    data_fidelity = float(sys.argv[2]) if len(sys.argv) >= 3 else 0
+    mix = sys.argv[3] if len(sys.argv) >= 4 else ''
+    print(mix)
+    dst = read_image('images/mugshot/marco.jpg').astype(np.float32) / 255
+    src = read_image('images/mugshot/mugshot.jpg').astype(np.float32) / 255
+    src_mask = read_mask('images/mugshot/mugshot_mask.png')
+    dst_mask = read_mask('images/mugshot/marco_mask.png')
+    # src = src[:,::-1]
+    # src_mask = src_mask[:,::-1]
+    transplants = [
+        (src, src_mask, dst_mask)
+    ]
+    plot_clonning_goal(dst, transplants)
+    cloning_result, cloning_raw = poisson_cloning(dst, transplants, data_fidelity, mix)
+    plot_comparison(cloning_raw, cloning_result)
 
 
 #     # poisson_cloning
