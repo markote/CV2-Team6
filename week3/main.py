@@ -13,7 +13,7 @@ cv2.imshow('Image', img); cv2.waitKey(0)
 # Normalize image
 img = (img.astype('float') - np.min(img))
 img = img/np.max(img)
-cv2.imshow('Normalized image',I)
+cv2.imshow('Normalized image',img)
 cv2.waitKey(0)
 
 # Height and width
@@ -52,6 +52,18 @@ phi = phi - 1
 # Explicit gradient descent or Semi-explicit (Gauss-Seidel) gradient descent (Bonus)
 # Extra: Implement the Chan-Sandberg-Vese model (for colored images)
 # Refer to Getreuer's paper (2012)
+
+# CODE TO COMPLETE
+epsilon = 1.0
+
+for iter in range(int(iterMax)):
+    # heaviside function H(phi(x))
+    H_phi_x = 0.5 * (1 + (2 / np.pi) * np.arctan(phi / epsilon))
+
+    # compute c1 and c2
+    c1 = np.sum(H_phi_x * img) / (np.sum(H_phi_x) + 1e-10) #tiny number to avoid zero division
+    c2 = np.sum((1 - H_phi_x) * img) / (np.sum(1 - H_phi_x) + 1e-10)
+
 
 # Segmented image
 seg = np.zeros(shape=img.shape)
