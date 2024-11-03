@@ -35,6 +35,11 @@ def _level_set_gradient(phi, f, c1, c2, mu, nu, l1, l2, epsilon=1.0):
     return derivative
     
 
+def _level_set_gauss_seidel(phi, f, c1, c2, mu, nu, l1, l2, epsilon=1.0, dt=1e-2):
+
+    #TODO
+    return phi
+
 def get_level_set_averages(f, phi):
     c1 = np.mean(f[phi >= 0])
     c2 = np.mean(f[phi < 0])

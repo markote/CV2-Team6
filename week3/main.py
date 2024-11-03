@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import segmentation
+import sys
+from tqdm import tqdm
 
 folderInput = 'images/'
 figure_name = 'circles.png'
@@ -33,7 +35,7 @@ lambda1 = 1
 lambda2 = 1
 tol = 0.1
 dt = (1e-2)/mu
-iterMax = 1e5
+iterMax = 50001
 
 X, Y = np.meshgrid(np.arange(0, nj), np.arange(0, ni), indexing='xy')
 
@@ -55,7 +57,7 @@ seg[phi >= 0] = 1.0
 seg[phi < 0] = 0.0
 
 # Show output image
-cv2.imshow('Segmented image', seg)
+# cv2.imshow('Segmented image', seg)
 
 # CODE TO COMPLETE
 # Explicit gradient descent or Semi-explicit (Gauss-Seidel) gradient descent (Bonus)
@@ -67,24 +69,27 @@ epsilon = 1.0
 if type_opt == "gradient-descent":
     print("Iterating...")
     #only works for gray level img
-    for iter in range(int(iterMax)):
+    for iter in tqdm(range(int(iterMax))):
         # compute/update c1 and c2
         c1,c2 = segmentation.get_level_set_averages(img, phi)
         # new iteration
         direction = segmentation._level_set_gradient(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon=epsilon)
         # update phi
         phi = phi - direction*dt
+
+
         # if np.linalg.norm(new_phi-phi)/np.sum(phi>=0) <= tol:
         #     #end cond to avoid to do all the iteration if the changes are smaller 
         #     break
 elif type_opt == "gauss-seidel":
-    for iter in range(int(iterMax)):
-        # heaviside function H(phi(x))
-        H_phi_x = 0.5 * (1 + (2 / np.pi) * np.arctan(phi / epsilon))
+    print("Iterating with Gauss-Seidel...")
+    for iter in tqdm(range(int(iterMax))):
+        c1, c2 = segmentation.get_level_set_averages(img, phi)
+        phi = segmentation._level_set_gauss_seidel(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon, dt)
+        
 
-        # compute c1 and c2
-        c1 = np.sum(H_phi_x * img) / (np.sum(H_phi_x) + 1e-10) #tiny number to avoid zero division
-        c2 = np.sum((1 - H_phi_x) * img) / (np.sum(1 - H_phi_x) + 1e-10)
+        
+
 elif type_opt == "gauss-seidel-color":
     for iter in range(int(iterMax)):
         # heaviside function H(phi(x))
@@ -105,3 +110,4 @@ seg[phi < 0] = 0.0
 
 # Show output image
 cv2.imshow('Segmented image', seg)
+cv2.waitKey(0)
