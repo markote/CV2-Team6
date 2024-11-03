@@ -6,11 +6,11 @@ folderInput = 'images/'
 figure_name = 'phantom2.bmp'
 figure_name_final = folderInput + figure_name
 img = cv2.imread(figure_name_final, cv2.IMREAD_UNCHANGED)
-# img = cv2.bilateralFilter(img,15,75,75)
+img = cv2.bilateralFilter(img,11,75,75)
 img = img.astype('float')
 
 # Visualize the grayscale image
-cv2.imshow('Image', img); cv2.waitKey(0)
+# cv2.imshow('Image', img); cv2.waitKey(0)
 
 # Normalize image
 img = (img.astype('float') - np.min(img))
@@ -47,8 +47,8 @@ if len(img.shape) > 2:
     img = np.mean(img, axis=2)
 
 # Try out different parameters
-mu = 0.5
-nu = 0.01
+mu = 1
+nu = 0.045
 lambda1 = 1
 lambda2 = 1
 tol = 1e-4
@@ -76,7 +76,7 @@ phi = phi - 1
 # Refer to Getreuer's paper (2012)
 
 # CODE TO COMPLETE
-epsilon = 1.0
+epsilon = 1.5
 
 for iter in range(int(iterMax)):
     # heaviside function H(phi(x))
