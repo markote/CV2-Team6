@@ -9,7 +9,7 @@ def get_level_set(shape, type='default'):
     return (-np.sqrt((Y - np.round(shape[0] / 2)) ** 2 + (X - np.round(shape[1] / 2)) ** 2) + 50)
 
 def _dirac_function(phi, epsilon):
-    return epsilon / (phi**2 + epsilon**2) * np.pi
+    return epsilon / (np.pi * (phi**2 + epsilon**2))
 
 
 def _level_set_gradient(phi, f, c1, c2, mu, nu, l1, l2):
