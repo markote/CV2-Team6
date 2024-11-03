@@ -1,20 +1,41 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 folderInput = 'images/'
-figure_name = 'circles.png'
+figure_name = 'phantom2.bmp'
 figure_name_final = folderInput + figure_name
 img = cv2.imread(figure_name_final, cv2.IMREAD_UNCHANGED)
+# img = cv2.bilateralFilter(img,15,75,75)
 img = img.astype('float')
 
 # Visualize the grayscale image
-# cv2.imshow('Image', img); cv2.waitKey(0)
+cv2.imshow('Image', img); cv2.waitKey(0)
 
 # Normalize image
 img = (img.astype('float') - np.min(img))
 img = img/np.max(img)
-# cv2.imshow('Normalized image',img)
-# cv2.waitKey(0)
+cv2.imshow('Normalized image',img); cv2.waitKey(0)
+
+# f = np.fft.fft2(img)
+# fshift = np.fft.fftshift(f)
+# m,n = fshift.shape
+# zeros = np.zeros_like(fshift)
+# s= 50
+# zeros[int(m/2)-s:int(m/2)+s, int(n/2)-s:int(n/2)+s] = fshift[int(m/2)-s:int(m/2)+s, int(n/2)-s:int(n/2)+s] 
+# fshift = zeros
+# magnitude_spectrum = np.log1p(np.abs(fshift))
+ 
+# plt.subplot(121),plt.imshow(img, cmap = 'gray')
+# plt.title('normalized im'), plt.xticks([]), plt.yticks([])
+# plt.subplot(122),plt.imshow(magnitude_spectrum, cmap = 'gray')
+# plt.title('mag'), plt.xticks([]), plt.yticks([])
+# plt.show()
+
+# f_ishift = np.fft.ifftshift(fshift)
+# img = np.fft.ifft2(f_ishift)
+# img = np.real(img)
+# cv2.imshow('Image', img); cv2.waitKey(0)
 
 # Height and width
 ni = img.shape[0]
@@ -26,13 +47,13 @@ if len(img.shape) > 2:
     img = np.mean(img, axis=2)
 
 # Try out different parameters
-mu = 0.2
-nu = 0
+mu = 0.5
+nu = 0.01
 lambda1 = 1
 lambda2 = 1
-tol = 1e-2
+tol = 1e-4
 dt = 0.5
-iterMax = 1e5
+iterMax = 3e4
 
 X, Y = np.meshgrid(np.arange(0, nj), np.arange(0, ni), indexing='xy')
 
