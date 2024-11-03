@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import segmentation
 
 folderInput = 'images/'
 figure_name = 'circles.png'
@@ -13,8 +14,7 @@ cv2.imshow('Image', img); cv2.waitKey(0)
 # Normalize image
 img = (img.astype('float') - np.min(img))
 img = img/np.max(img)
-cv2.imshow('Normalized image',img)
-cv2.waitKey(0)
+cv2.imshow('Normalized image',img); cv2.waitKey(0)
 
 # Height and width
 ni = img.shape[0]
@@ -26,6 +26,7 @@ if len(img.shape) > 2:
     img = np.mean(img, axis=2)
 
 # Try out different parameters
+type_opt = "gradient-descent"
 mu = 1
 nu = 1
 lambda1 = 1
@@ -48,6 +49,14 @@ phi = phi - min_val
 phi = 2 * phi / max_val
 phi = phi - 1
 
+# Segmented image
+seg = np.zeros(shape=img.shape)
+seg[phi >= 0] = 1.0
+seg[phi < 0] = 0.0
+
+# Show output image
+cv2.imshow('Segmented image', seg)
+
 # CODE TO COMPLETE
 # Explicit gradient descent or Semi-explicit (Gauss-Seidel) gradient descent (Bonus)
 # Extra: Implement the Chan-Sandberg-Vese model (for colored images)
@@ -55,20 +64,44 @@ phi = phi - 1
 
 # CODE TO COMPLETE
 epsilon = 1.0
+if type_opt == "gradient-descent":
+    print("Iterating...")
+    #only works for gray level img
+    for iter in range(int(iterMax)):
+        # compute/update c1 and c2
+        c1,c2 = segmentation.get_level_set_averages(img, phi)
+        # new iteration
+        direction = segmentation._level_set_gradient(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon=epsilon)
+        # update phi
+        phi = phi - direction*dt
+        # if np.linalg.norm(new_phi-phi)/np.sum(phi>=0) <= tol:
+        #     #end cond to avoid to do all the iteration if the changes are smaller 
+        #     break
+elif type_opt == "gauss-seidel":
+    for iter in range(int(iterMax)):
+        # heaviside function H(phi(x))
+        H_phi_x = 0.5 * (1 + (2 / np.pi) * np.arctan(phi / epsilon))
 
-for iter in range(int(iterMax)):
-    # heaviside function H(phi(x))
-    H_phi_x = 0.5 * (1 + (2 / np.pi) * np.arctan(phi / epsilon))
+        # compute c1 and c2
+        c1 = np.sum(H_phi_x * img) / (np.sum(H_phi_x) + 1e-10) #tiny number to avoid zero division
+        c2 = np.sum((1 - H_phi_x) * img) / (np.sum(1 - H_phi_x) + 1e-10)
+elif type_opt == "gauss-seidel-color":
+    for iter in range(int(iterMax)):
+        # heaviside function H(phi(x))
+        H_phi_x = 0.5 * (1 + (2 / np.pi) * np.arctan(phi / epsilon))
 
-    # compute c1 and c2
-    c1 = np.sum(H_phi_x * img) / (np.sum(H_phi_x) + 1e-10) #tiny number to avoid zero division
-    c2 = np.sum((1 - H_phi_x) * img) / (np.sum(1 - H_phi_x) + 1e-10)
-
+        # compute c1 and c2
+        c1 = np.sum(H_phi_x * img) / (np.sum(H_phi_x) + 1e-10) #tiny number to avoid zero division
+        c2 = np.sum((1 - H_phi_x) * img) / (np.sum(1 - H_phi_x) + 1e-10)
+else:
+    sys.exit("Error wrong method")
 
 # Segmented image
 seg = np.zeros(shape=img.shape)
 
 # CODE TO COMPLETE
+seg[phi >= 0] = 1.0
+seg[phi < 0] = 0.0
 
 # Show output image
-cv2.imshow('Segmented image', seg); cv2.waitKey(0)
+cv2.imshow('Segmented image', seg)

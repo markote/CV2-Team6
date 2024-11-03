@@ -12,7 +12,7 @@ def _dirac_function(phi, epsilon):
     return epsilon / (np.pi * (phi**2 + epsilon**2))
 
 
-def _level_set_gradient(phi, f, c1, c2, mu, nu, l1, l2):
+def _level_set_gradient(phi, f, c1, c2, mu, nu, l1, l2, epsilon=1.0):
     # Length Term Derivative
     grad_x, grad_y = np.gradient(phi)
     magnitude = np.sqrt(grad_x**2 + grad_y**2)
@@ -30,7 +30,7 @@ def _level_set_gradient(phi, f, c1, c2, mu, nu, l1, l2):
     # Area Term
     area_term = -nu
 
-    derivative = _dirac_function(phi, 1) * (length_term + area_term + region1_term + region2_term)
+    derivative = _dirac_function(phi, epsilon) * (length_term + area_term + region1_term + region2_term)
     #TODO set image boudnary
     return derivative
     
