@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from scipy.ndimage import generic_filter
-from segmentation import initialize_level_set, _level_set_gradient, compute_binaryvalue_c1c2
+from segmentation import explicit_gradient_descent_loop, initialize_level_set
 import sys
 
 # default parameters
@@ -80,27 +80,13 @@ phi = initialize_level_set((ni,nj))
 # Explicit gradient descent or Semi-explicit (Gauss-Seidel) gradient descent (Bonus)
 # Extra: Implement the Chan-Sandberg-Vese model (for colored images)
 # Refer to Getreuer's paper (2012)
-
-
-for iter in range(int(iterMax)):
-    c1,c2 = compute_binaryvalue_c1c2(f= img, phi= phi, epsilon= epsilon)
-    dphi_dt = _level_set_gradient(phi, img, c1, c2,mu,nu,lambda1,lambda2,epsilon)
-
-    # update phi
-    phi_old = phi.copy()
-    phi = phi + dt * dphi_dt
-
-    # converge
-    if np.max(np.abs(phi - phi_old)) < tol:
-        print('Converged at iteration', iter)
-        break
-    # display phi
-    if iter % 1000 == 0:
-        print('Iteration:', iter)
-        phi_display = (phi - np.min(phi)) / (np.max(phi) - np.min(phi))
-        phi_display = (phi_display * 255).astype(np.uint8)
-        cv2.imshow('Phi', phi_display)
-        cv2.waitKey(1)
+if len(sys.argv) > 2:
+    if sys.argv[2] == 'gauss-seidel':
+        assert NotImplementedError() #TODO: Gauss-Seidel
+    else:
+        phi = explicit_gradient_descent_loop(img, phi, epsilon, mu, nu, lambda1, lambda2, dt, tol, iterMax)
+else:
+    phi = explicit_gradient_descent_loop(img, phi, epsilon, mu, nu, lambda1, lambda2, dt, tol, iterMax)
 
 # Segmented image
 seg = np.zeros_like(img)
