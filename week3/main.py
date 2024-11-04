@@ -28,20 +28,20 @@ if len(img.shape) > 2:
     img = np.mean(img, axis=2)
 
 # Try out different parameters
-type_opt = "gradient-descent"
+type_opt = "gauss-seidel"
 mu = 1
 nu = 1
 lambda1 = 1
 lambda2 = 1
-tol = 0.1
-dt = (1e-2)/mu
-iterMax = 50001
+tol = 1e-3
+dt = 0.75
+iterMax = 3e4
 
 X, Y = np.meshgrid(np.arange(0, nj), np.arange(0, ni), indexing='xy')
 
 # Initial phi
 # This initialization allows a faster convergence for phantom2
-phi = (-np.sqrt((X - np.round(ni / 2)) ** 2 + (Y - np.round(nj / 2)) ** 2) + 50)
+phi = segmentation.get_level_set(img.shape) #(-np.sqrt((X - np.round(ni / 2)) ** 2 + (Y - np.round(nj / 2)) ** 2) + 50)
 # Alternatively, you may initialize randomly, or use the checkerboard pattern as suggested in Getreuer's paper
 
 # Normalization of the initial phi to the range [-1, 1]
@@ -75,17 +75,42 @@ if type_opt == "gradient-descent":
         # new iteration
         direction = segmentation._level_set_gradient(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon=epsilon)
         # update phi
-        phi = phi - direction*dt
-
+        phi_old = np.copy(phi)
+        phi = phi + direction*dt
+        if np.max(np.abs(phi - phi_old)) < tol:
+            print('Converged at iteration', iter)
+            break
+        # display phi
+        if iter % 1000 == 0:
+            print('Iteration:', iter)
+            phi_display = (phi - np.min(phi)) / (np.max(phi) - np.min(phi))
+            phi_display = (phi_display * 255).astype(np.uint8)
+            cv2.imshow('Phi', phi_display)
+            cv2.waitKey(1)
 
         # if np.linalg.norm(new_phi-phi)/np.sum(phi>=0) <= tol:
         #     #end cond to avoid to do all the iteration if the changes are smaller 
         #     break
 elif type_opt == "gauss-seidel":
+    tol = 1e-3
     print("Iterating with Gauss-Seidel...")
     for iter in tqdm(range(int(iterMax))):
-        c1, c2 = segmentation.get_level_set_averages(img, phi)
-        phi = segmentation._level_set_gauss_seidel(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon, dt)
+        c1, c2 = segmentation.compute_binaryvalue_c1c2(img, phi, epsilon)
+        region1_term = -lambda1 * (img - c1)**2
+        region2_term = lambda2 * (img - c2)**2
+        phi_old = np.copy(phi)
+        segmentation._level_set_gauss_seidel(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon=epsilon, dt=dt,region1_term=region1_term,region2_term=region2_term)
+        
+        if np.linalg.norm(phi - phi_old) <= tol:
+            print('Converged at iteration', iter)
+            break
+
+        if iter % 100 == 0:
+            print('Iteration:', iter)
+            phi_display = (phi - np.min(phi)) / (np.max(phi) - np.min(phi))
+            phi_display = (phi_display * 255).astype(np.uint8)
+            cv2.imshow('Phi', phi_display)
+            cv2.waitKey(1)
         
 
         
@@ -105,8 +130,10 @@ else:
 seg = np.zeros(shape=img.shape)
 
 # CODE TO COMPLETE
-seg[phi >= 0] = 1.0
-seg[phi < 0] = 0.0
+seg[phi >= 0] = 1
+seg[phi < 0] = 0
+
+seg = (seg * 255).astype(np.uint8)
 
 # Show output image
 cv2.imshow('Segmented image', seg)
