@@ -49,14 +49,28 @@ def _compute_energy(f, phi, c1, c2, mu, nu, lambda1, lambda2, epsilon):
     
     return total_energy
 
+def enforce_neumann_boundary_conditions(phi, dirac_delta):
+    # Enforce Neumann boundary conditions with smoothing based on the Dirac delta function
+    
+    # Top boundary
+    phi[0, :] = (1 - dirac_delta[0, :]) * phi[0, :] + dirac_delta[0, :] * phi[1, :]
+    
+    # Bottom boundary
+    phi[-1, :] = (1 - dirac_delta[-1, :]) * phi[-1, :] + dirac_delta[-1, :] * phi[-2, :]
+    
+    # Left boundary
+    phi[:, 0] = (1 - dirac_delta[:, 0]) * phi[:, 0] + dirac_delta[:, 0] * phi[:, 1]
+    
+    # Right boundary
+    phi[:, -1] = (1 - dirac_delta[:, -1]) * phi[:, -1] + dirac_delta[:, -1] * phi[:, -2]
+    
+    return phi
+
 def _compute_level_set_explicit_gradient(phi, f, c1, c2, mu, nu, l1, l2, epsilon):
     # Length Term Derivative
     phi = np.copy(phi)
-    # Enforce zero-gradient at the boundaries (Neumann condition)
-    phi[0, :] = phi[1, :]  # Top boundary
-    phi[-1, :] = phi[-2, :]  # Bottom boundary
-    phi[:, 0] = phi[:, 1]  # Left boundary
-    phi[:, -1] = phi[:, -2]  # Right boundary
+    # Enforce smooth Neumann boundary conditions before computing the gradient
+    phi = enforce_neumann_boundary_conditions(phi, _dirac_delta(phi, 1e-7))
     phi_y, phi_x = np.gradient(phi)
 
     # compute gradient magnitude
