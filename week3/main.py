@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
+import segmentation
+import sys
+from tqdm import tqdm
 from scipy.ndimage import generic_filter
 from segmentation import explicit_gradient_descent_loop, initialize_level_set
-import sys
 
 # default parameters
 mu = 1
@@ -62,6 +64,7 @@ cv2.imshow('Image', img); cv2.waitKey(0)
 img = (img.astype('float') - np.min(img))
 img = img/np.max(img)
 cv2.imshow('Normalized image',img); cv2.waitKey(0)
+
 # Height and width
 ni = img.shape[0]
 nj = img.shape[1]
@@ -71,18 +74,48 @@ if len(img.shape) > 2:
     nc = img.shape[2] # number of channels
     img = np.mean(img, axis=2)
 
+
+# Show output image
+# cv2.imshow('Segmented image', seg)
 # Initial phi
-# This initialization allows a faster convergence for phantom2
 phi = initialize_level_set((ni,nj))
-# Alternatively, you may initialize randomly, or use the checkerboard pattern as suggested in Getreuer's paper
 
 # CODE TO COMPLETE
 # Explicit gradient descent or Semi-explicit (Gauss-Seidel) gradient descent (Bonus)
 # Extra: Implement the Chan-Sandberg-Vese model (for colored images)
 # Refer to Getreuer's paper (2012)
+
+
+epsilon = 1.0
+
+# Segmented image
+seg = np.zeros(shape=img.shape)
+
+# CODE TO COMPLETE
+seg[phi >= 0] = 1
+seg[phi < 0] = 0
+
 if len(sys.argv) > 2:
     if sys.argv[2] == 'gauss-seidel':
-        assert NotImplementedError() #TODO: Gauss-Seidel
+      tol = 1e-3
+      print("Iterating with Gauss-Seidel...")
+      for iter in tqdm(range(int(iterMax))):
+          c1, c2 = segmentation.compute_binaryvalue_c1c2(img, phi, epsilon)
+          region1_term = -lambda1 * (img - c1)**2
+          region2_term = lambda2 * (img - c2)**2
+          phi_old = np.copy(phi)
+          segmentation._level_set_gauss_seidel(phi, img, c1, c2, mu, nu, lambda1, lambda2, epsilon=epsilon, dt=dt,region1_term=region1_term,region2_term=region2_term)
+        
+          if np.linalg.norm(phi - phi_old) <= tol:
+            print('Converged at iteration', iter)
+            break
+
+          if iter % 100 == 0:
+            print('Iteration:', iter)
+            phi_display = (phi - np.min(phi)) / (np.max(phi) - np.min(phi))
+            phi_display = (phi_display * 255).astype(np.uint8)
+            cv2.imshow('Phi', phi_display)
+            cv2.waitKey(1) #TODO: Gauss-Seidel
     else:
         phi = explicit_gradient_descent_loop(img, phi, epsilon, mu, nu, lambda1, lambda2, dt, tol, iterMax)
 else:
@@ -94,4 +127,5 @@ seg[phi >= 0] = 1
 seg = (seg * 255).astype(np.uint8)
 
 # Show output image
-cv2.imshow('Segmented image', seg); cv2.waitKey(0)
+cv2.imshow('Segmented image', seg)
+cv2.waitKey(0)
