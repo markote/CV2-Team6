@@ -37,6 +37,7 @@ elif sys.argv[1] == 'phantom2':
     figure_name_final = folderInput + figure_name
     img = cv2.imread(figure_name_final, cv2.IMREAD_UNCHANGED)
     img = cv2.bilateralFilter(img,11,75,75)
+    img = cv2.GaussianBlur(img,(11,11),0)
     epsilon = 1.5
 elif sys.argv[1] == 'phantom1':
     folderInput = 'images/'
