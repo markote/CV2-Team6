@@ -113,16 +113,16 @@ def get_phi(phi,i,j):
 
 
 def get_A_value(phi_ij, phi_ip_j, phi_im_j, phi_i_jp, phi_i_jm, mu, n=1e-16):
-    divisor = np.sqrt(np.float64(n + (phi_ip_j-phi_ij)**2 + ((phi_i_jp-phi_i_jm)/2)**2 ))
+    divisor = np.sqrt((n + (phi_ip_j-phi_ij)**2 + ((phi_i_jp-phi_i_jm)/2)**2 ))
     return mu/divisor
 
 def get_B_value(phi_ij, phi_ip_j, phi_im_j, phi_i_jp, phi_i_jm, mu, n=1e-16):
-    divisor = np.sqrt(np.float64(n + ((phi_ip_j-phi_im_j)/2)**2 + (phi_ij-phi_ip_j)**2 ))
+    divisor = np.sqrt((n + ((phi_ip_j-phi_im_j)/2)**2 + (phi_ij-phi_ip_j)**2 ))
     return mu/divisor
 
 def compute_new_phi_ij(phi, f, i, j, c1, c2, mu, nu, l1, l2, epsilon=1.0,dt=1e-2,region1_term=0,region2_term=0):
 
-    dt_dirac_phi_ij = dt*_dirac_function(phi[i][j], epsilon)
+    dt_dirac_phi_ij = dt*_dirac_delta(phi[i][j], epsilon)
     
     phi_ij = get_phi(phi,i,j)
     phi_ip_j = get_phi(phi,i+1,j)
